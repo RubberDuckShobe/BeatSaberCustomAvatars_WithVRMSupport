@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -14,8 +14,6 @@
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-using System;
-using CustomAvatar.Avatar;
 using CustomAvatar.Configuration;
 using CustomAvatar.Logging;
 using CustomAvatar.Rendering;
@@ -25,11 +23,10 @@ using Zenject;
 
 namespace CustomAvatar.Player
 {
-    internal class GameEnvironmentObjectManager : IInitializable, IDisposable
+    internal class GameEnvironmentObjectManager : IInitializable
     {
-        private static readonly int kReflectionProbeTexture1PropertyId = Shader.PropertyToID("_ReflectionProbeTexture1");
-        private static readonly int kReflectionProbeTexture2PropertyId = Shader.PropertyToID("_ReflectionProbeTexture2");
-        private static readonly Cubemap kBlackCubemap = new Cubemap(0, TextureFormat.DXT1Crunched, false);
+        private const string kEnvironmentObjectPath = "/Environment";
+        private const string kSpectatorObjectPath = "/SpectatorParent";
 
         private readonly DiContainer _container;
         private readonly ILogger<GameEnvironmentObjectManager> _logger;
@@ -46,9 +43,9 @@ namespace CustomAvatar.Player
 
         public void Initialize()
         {
-            var environment = GameObject.Find("/Environment");
+            var environment = GameObject.Find(kEnvironmentObjectPath);
 
-            if (environment)
+            if (environment != null)
             {
                 switch (_settings.floorHeightAdjust.value)
                 {
@@ -66,7 +63,7 @@ namespace CustomAvatar.Player
                         }
                         else
                         {
-                            _logger.Warning($"PlayersPlace not found!");
+                            _logger.LogWarning($"PlayersPlace not found!");
                         }
 
                         break;
@@ -74,38 +71,31 @@ namespace CustomAvatar.Player
             }
             else
             {
-                _logger.Warning($"{environment.name} not found!");
+                _logger.LogWarning($"{kEnvironmentObjectPath} not found!");
             }
 
             // ScoreSaber replay spectator camera
-            var spectatorParent = GameObject.Find("/SpectatorParent");
+            var spectatorParent = GameObject.Find(kSpectatorObjectPath);
 
-            if (spectatorParent)
+            if (spectatorParent != null)
             {
                 // "SpectatorParent" has position room adjust applied but not rotation
                 var avatarParent = new GameObject("AvatarParent");
                 Transform avatarParentTransform = avatarParent.transform;
                 avatarParentTransform.localRotation = _beatSaberUtilities.roomRotation;
                 avatarParentTransform.SetParent(spectatorParent.transform, false);
-                _container.InstantiateComponent<AvatarCenterAdjust>(avatarParent);
 
                 Camera spectatorCamera = spectatorParent.GetComponentInChildren<Camera>();
 
-                if (spectatorCamera)
+                if (spectatorCamera != null)
                 {
                     _container.InstantiateComponent<CustomAvatarsMainCameraController>(spectatorCamera.gameObject);
                 }
                 else
                 {
-                    _logger.Warning($"Spectator camera not found!");
+                    _logger.LogWarning($"Spectator camera not found!");
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            Shader.SetGlobalTexture(kReflectionProbeTexture1PropertyId, kBlackCubemap);
-            Shader.SetGlobalTexture(kReflectionProbeTexture2PropertyId, kBlackCubemap);
         }
     }
 }

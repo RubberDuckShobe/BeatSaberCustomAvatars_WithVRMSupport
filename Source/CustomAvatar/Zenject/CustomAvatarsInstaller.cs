@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -16,10 +16,9 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using CustomAvatar.Avatar;
 using CustomAvatar.Configuration;
-using CustomAvatar.HarmonyPatches;
-using CustomAvatar.Lighting;
 using CustomAvatar.Logging;
 using CustomAvatar.Player;
 using CustomAvatar.Rendering;
@@ -28,6 +27,7 @@ using CustomAvatar.Tracking.OpenVR;
 using CustomAvatar.Tracking.UnityXR;
 using CustomAvatar.Utilities;
 using IPA.Utilities;
+using SiraUtil.Affinity;
 using UnityEngine.XR;
 using Valve.VR;
 using Zenject;
@@ -39,13 +39,13 @@ namespace CustomAvatar.Zenject
     {
         public static readonly int kPlayerAvatarManagerExecutionOrder = 1000;
 
-        private readonly ILogger<CustomAvatarsInstaller> _logger;
+        private static readonly MethodInfo kCreateLoggerMethod = typeof(ILoggerFactory).GetMethod(nameof(ILoggerFactory.CreateLogger), BindingFlags.Public | BindingFlags.Instance);
+
         private readonly Logger _ipaLogger;
         private readonly PCAppInit _pcAppInit;
 
         public CustomAvatarsInstaller(Logger ipaLogger, PCAppInit pcAppInit)
         {
-            _logger = new IPALogger<CustomAvatarsInstaller>(ipaLogger);
             _ipaLogger = ipaLogger;
             _pcAppInit = pcAppInit;
         }
@@ -53,13 +53,16 @@ namespace CustomAvatar.Zenject
         public override void InstallBindings()
         {
             // logging
+            Container.Bind(typeof(ILoggerFactory)).To<IPALoggerFactory>().AsTransient().WithArguments(_ipaLogger);
             Container.Bind(typeof(ILogger<>)).FromMethodUntyped(CreateLogger).AsTransient();
 
             // settings
-            Settings settings = LoadSettings();
-            MirrorRendererSO_CreateOrUpdateMirrorCamera.settings = settings;
-            Container.Bind<Settings>().FromInstance(settings);
-            Container.BindInterfacesAndSelfTo<CalibrationData>().AsSingle();
+            SettingsManager settingsManager = Container.Instantiate<SettingsManager>();
+            settingsManager.Load();
+
+            Container.Bind<SettingsManager>().FromInstance(settingsManager).AsSingle();
+            Container.Bind<Settings>().FromMethod((ctx) => ctx.Container.Resolve<SettingsManager>().settings).AsTransient();
+            Container.Bind(typeof(CalibrationData), typeof(IDisposable)).To<CalibrationData>().AsSingle();
 
             if (XRSettings.loadedDeviceName.Equals("openvr", StringComparison.InvariantCultureIgnoreCase) &&
                 OpenVR.IsRuntimeInstalled() &&
@@ -67,30 +70,32 @@ namespace CustomAvatar.Zenject
                 !Environment.GetCommandLineArgs().Contains("--force-xr"))
             {
                 Container.Bind<OpenVRFacade>().AsTransient();
-                Container.BindInterfacesAndSelfTo<OpenVRDeviceProvider>().AsSingle();
+                Container.Bind(typeof(IDeviceProvider)).To<OpenVRDeviceProvider>().AsSingle();
             }
             else
             {
-                Container.BindInterfacesTo<UnityXRDeviceProvider>().AsSingle();
+                Container.Bind(typeof(IDeviceProvider), typeof(IInitializable), typeof(IDisposable)).To<UnityXRDeviceProvider>().AsSingle();
             }
 
             // managers
-            Container.BindInterfacesAndSelfTo<PlayerAvatarManager>().AsSingle().NonLazy();
-            Container.BindInterfacesAndSelfTo<ShaderLoader>().AsSingle().NonLazy();
-            Container.BindInterfacesAndSelfTo<DeviceManager>().AsSingle().NonLazy();
+            Container.Bind(typeof(PlayerAvatarManager), typeof(IInitializable), typeof(IDisposable)).To<PlayerAvatarManager>().AsSingle().NonLazy();
+            Container.Bind(typeof(ShaderLoader), typeof(IInitializable)).To<ShaderLoader>().AsSingle().NonLazy();
+            Container.Bind(typeof(DeviceManager), typeof(ITickable)).To<DeviceManager>().AsSingle().NonLazy();
 
             // this prevents a race condition when registering components in AvatarSpawner
             Container.BindExecutionOrder<PlayerAvatarManager>(kPlayerAvatarManagerExecutionOrder);
 
             Container.Bind<AvatarLoader>().AsSingle();
             Container.Bind<AvatarSpawner>().AsSingle();
-            Container.BindInterfacesAndSelfTo<VRPlayerInput>().AsSingle();
+            Container.Bind<ActiveCameraManager>().AsSingle();
+            Container.Bind<ActivePlayerSpaceManager>().AsSingle();
+            Container.Bind(typeof(VRPlayerInput), typeof(IInitializable), typeof(IDisposable)).To<VRPlayerInput>().AsSingle();
             Container.Bind(typeof(VRPlayerInputInternal), typeof(IInitializable), typeof(IDisposable)).To<VRPlayerInputInternal>().AsSingle();
-            Container.BindInterfacesAndSelfTo<LightingQualityController>().AsSingle();
-            Container.BindInterfacesAndSelfTo<BeatSaberUtilities>().AsSingle();
+            Container.Bind(typeof(IInitializable), typeof(IDisposable)).To<QualitySettingsController>().AsSingle();
+            Container.Bind(typeof(BeatSaberUtilities), typeof(IInitializable), typeof(IDisposable)).To<BeatSaberUtilities>().AsSingle();
 
 #pragma warning disable CS0612
-            Container.BindInterfacesAndSelfTo<FloorController>().AsSingle();
+            Container.Bind(typeof(FloorController), typeof(IInitializable), typeof(IDisposable)).To<FloorController>().AsSingle();
 #pragma warning restore CS0612
 
             // helper classes
@@ -99,31 +104,22 @@ namespace CustomAvatar.Zenject
             Container.Bind<TrackingHelper>().AsTransient();
 
             Container.Bind<MainSettingsModelSO>().FromInstance(_pcAppInit.GetField<MainSettingsModelSO, PCAppInit>("_mainSettingsModel")).IfNotBound();
+
+            Container.Bind(typeof(IAffinity)).To<Patches.MirrorRendererSO>().AsSingle();
         }
 
         private object CreateLogger(InjectContext context)
         {
             Type genericType = context.MemberType.GenericTypeArguments[0];
 
-            return genericType.IsAssignableFrom(context.ObjectType)
-                ? Activator.CreateInstance(typeof(IPALogger<>).MakeGenericType(genericType), _ipaLogger)
-                : throw new InvalidOperationException($"Cannot create logger with generic type '{genericType}' for type '{context.ObjectType}'");
-        }
-
-        private Settings LoadSettings()
-        {
-            try
+            if (!genericType.IsAssignableFrom(context.ObjectType))
             {
-                _logger.Info($"Reading settings from '{Settings.kSettingsPath}'");
-                return Settings.Load();
+                throw new InvalidOperationException($"Cannot create logger with generic type '{genericType}' for type '{context.ObjectType}'");
             }
-            catch (Exception ex)
-            {
-                _logger.Error("Failed to read settings from file");
-                _logger.Error(ex);
 
-                return new Settings();
-            }
+            ILoggerFactory instance = context.Container.Resolve<ILoggerFactory>();
+
+            return kCreateLoggerMethod.MakeGenericMethod(context.ObjectType).Invoke(instance, new object[] { null });
         }
     }
 }

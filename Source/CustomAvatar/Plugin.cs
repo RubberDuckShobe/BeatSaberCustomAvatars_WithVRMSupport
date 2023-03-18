@@ -1,5 +1,5 @@
 //  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -15,11 +15,10 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using BeatSaberMarkupLanguage;
-using CustomAvatar.Avatar;
 using CustomAvatar.Logging;
 using CustomAvatar.Player;
 using CustomAvatar.Rendering;
-using CustomAvatar.UI.Slider;
+using CustomAvatar.UI.CustomTags;
 using CustomAvatar.Zenject;
 using CustomAvatar.Zenject.Internal;
 using HarmonyLib;
@@ -36,15 +35,15 @@ namespace CustomAvatar
         [Init]
         public Plugin(Logger ipaLogger)
         {
-            var armSpanSliderTag = new ArmSpanSliderTag();
+            var armSpanSliderTag = new ValuePickerTag();
 
             BSMLParser.instance.RegisterTag(armSpanSliderTag);
-            BSMLParser.instance.RegisterTypeHandler(new ArmSpanSliderHandler());
+            BSMLParser.instance.RegisterTypeHandler(new ValuePickerHandler());
 
             // can't inject at this point so just create it
             ILogger<Plugin> logger = new IPALogger<Plugin>(ipaLogger);
 
-            logger.Info("Initializing Custom Avatars");
+            logger.LogInformation("Initializing Custom Avatars");
 
             ZenjectHelper.Init(ipaLogger);
 
@@ -53,9 +52,7 @@ namespace CustomAvatar
 
             ZenjectHelper.AddComponentAlongsideExisting<MainCamera, CustomAvatarsMainCameraController>();
             ZenjectHelper.AddComponentAlongsideExisting<SmoothCamera, CustomAvatarsSmoothCameraController>();
-            ZenjectHelper.AddComponentAlongsideExisting<VRCenterAdjust, AvatarCenterAdjust>(null, go => go.name == "Origin" && go.scene.name != "Tutorial"); // don't add on tutorial - temporary fix to avoid Counters+ disabling the avatar
 
-            ZenjectHelper.AddComponentAlongsideExisting<BloomFogEnvironment, EnvironmentObject>();
             ZenjectHelper.AddComponentAlongsideExisting<MenuEnvironmentManager, EnvironmentObject>();
             ZenjectHelper.AddComponentAlongsideExisting<MultiplayerLocalActivePlayerFacade, EnvironmentObject>("IsActiveObjects/Lasers");
             ZenjectHelper.AddComponentAlongsideExisting<MultiplayerLocalActivePlayerFacade, EnvironmentObject>("IsActiveObjects/Construction");
@@ -64,13 +61,8 @@ namespace CustomAvatar
             ZenjectHelper.AddComponentAlongsideExisting<MultiplayerConnectedPlayerFacade, EnvironmentObject>();
 
             ZenjectHelper.Register<CustomAvatarsInstaller>().WithArguments(ipaLogger).OnMonoInstaller<PCAppInit>();
-            ZenjectHelper.Register<UIInstaller>().WithArguments(armSpanSliderTag).OnContext("MainMenu", "MenuCore");
-
+            ZenjectHelper.Register<MainMenuInstaller>().WithArguments(armSpanSliderTag).OnContext("MainMenu", "MenuCore");
             ZenjectHelper.Register<HealthWarningInstaller>().OnContext("HealthWarning", "SceneContext");
-            ZenjectHelper.Register<LightingInstaller>().OnContext("HealthWarning", "SceneContext");
-            ZenjectHelper.Register<LightingInstaller>().OnContext("MainMenu", "SceneContext");
-            ZenjectHelper.Register<LightingInstaller>().OnContext("GameCore", "SceneContext");
-
             ZenjectHelper.Register<GameInstaller>().OnMonoInstaller<GameplayCoreInstaller>();
         }
 

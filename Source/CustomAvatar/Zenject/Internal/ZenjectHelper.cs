@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -44,6 +44,8 @@ namespace CustomAvatar.Zenject.Internal
 
         private static ILogger<ZenjectHelper> _logger;
 
+        internal static event Action<Context> installInstallers;
+
         internal static void Init(IPA.Logging.Logger logger)
         {
             _logger = new IPALogger<ZenjectHelper>(logger);
@@ -63,9 +65,9 @@ namespace CustomAvatar.Zenject.Internal
             kComponentsToBind.Add(typeof(T));
         }
 
-        public static void AddComponentAlongsideExisting<TExisting, TAdd>(string childTransformName = null, Func<GameObject, bool> condition = null, params object[] extraArgs) where TExisting : MonoBehaviour where TAdd : MonoBehaviour
+        public static void AddComponentAlongsideExisting<TExisting, TAdd>(string childTransformName = null, Func<GameObject, bool> condition = null) where TExisting : MonoBehaviour where TAdd : MonoBehaviour
         {
-            var componentRegistration = new ComponentRegistration(typeof(TAdd), childTransformName, condition, extraArgs);
+            var componentRegistration = new ComponentRegistration(typeof(TAdd), childTransformName, condition);
 
             if (kComponentsToAdd.TryGetValue(typeof(TExisting), out List<ComponentRegistration> types))
             {
@@ -93,14 +95,14 @@ namespace CustomAvatar.Zenject.Internal
                 {
                     if (!(__instance is ProjectContext))
                     {
-                        _logger.Warning($"Ignoring {__instance.GetType().Name} '{__instance.name}' since SceneContext '{kExpectedFirstSceneContextName}' hasn't loaded yet");
+                        _logger.LogWarning($"Ignoring {__instance.GetType().Name} '{__instance.name}' since SceneContext '{kExpectedFirstSceneContextName}' hasn't loaded yet");
                     }
 
                     return;
                 }
             }
 
-            _logger.Trace($"Handling {__instance.GetType().Name} '{__instance.name}' (scene '{__instance.gameObject.scene.name}')");
+            _logger.LogTrace($"Handling {__instance.GetType().Name} '{__instance.name}' (scene '{__instance.gameObject.scene.name}')");
 
             foreach (MonoInstaller installer in __instance.Installers)
             {
@@ -111,12 +113,12 @@ namespace CustomAvatar.Zenject.Internal
             {
                 if (installerRegistration.TryInstallInto(__instance))
                 {
-                    _logger.Trace($"Installed {installerRegistration.installer.FullName}");
+                    _logger.LogTrace($"Installed {installerRegistration.installer.FullName}");
                 }
             }
 
 #if DEBUG
-            _logger.Trace($"InstallInstallers: {stopwatch.ElapsedTicks / (TimeSpan.TicksPerMillisecond / 1000)} us");
+            _logger.LogTrace($"InstallInstallers: {stopwatch.ElapsedTicks / (TimeSpan.TicksPerMillisecond / 1000)} us");
 #endif
         }
 
@@ -140,7 +142,7 @@ namespace CustomAvatar.Zenject.Internal
             }
 
 #if DEBUG
-            _logger.Trace($"InstallBindings: {stopwatch.ElapsedTicks / (TimeSpan.TicksPerMillisecond / 1000)} us");
+            _logger.LogTrace($"InstallBindings: {stopwatch.ElapsedTicks / (TimeSpan.TicksPerMillisecond / 1000)} us");
 #endif
         }
 
@@ -152,13 +154,13 @@ namespace CustomAvatar.Zenject.Internal
 
             if (!context.Container.HasBinding(type))
             {
-                _logger.Trace($"Binding '{type.FullName}' from {context.GetType().Name} '{context.name}' (scene '{context.gameObject.scene.name}')");
+                _logger.LogTrace($"Binding '{type.FullName}' from {context.GetType().Name} '{context.name}' (scene '{context.gameObject.scene.name}')");
 
                 context.Container.Bind(type).FromInstance(monoBehaviour).AsSingle().IfNotBound();
             }
             else
             {
-                _logger.Trace($"'{type.FullName}' is already bound on {context.GetType().Name} '{context.name}' (scene '{context.gameObject.scene.name}')");
+                _logger.LogTrace($"'{type.FullName}' is already bound on {context.GetType().Name} '{context.name}' (scene '{context.gameObject.scene.name}')");
             }
         }
 
@@ -178,7 +180,7 @@ namespace CustomAvatar.Zenject.Internal
 
                     if (!transform)
                     {
-                        _logger.Warning($"Could not find transform '{componentRegistration.childTransformName}' under '{target.name}'");
+                        _logger.LogWarning($"Could not find transform '{componentRegistration.childTransformName}' under '{target.name}'");
                         continue;
                     }
 
@@ -187,12 +189,14 @@ namespace CustomAvatar.Zenject.Internal
 
                 if (componentRegistration.condition != null && !componentRegistration.condition(target))
                 {
-                    _logger.Trace($"Condition not met for putting '{componentRegistration.type.FullName}' onto '{target.name}'");
+                    _logger.LogTrace($"Condition not met for putting '{componentRegistration.type.FullName}' onto '{target.name}'");
                     continue;
                 }
 
-                _logger.Trace($"Adding '{componentRegistration.type.FullName}' to GameObject '{target.name}' (for '{monoBehaviourType.FullName}')");
-                context.Container.InstantiateComponent(componentRegistration.type, target, componentRegistration.extraArgs);
+                _logger.LogTrace($"Adding '{componentRegistration.type.FullName}' to GameObject '{target.name}' (for '{monoBehaviourType.FullName}')");
+
+                Component component = target.AddComponent(componentRegistration.type);
+                context.Container.QueueForInject(component);
             }
         }
 
@@ -201,14 +205,12 @@ namespace CustomAvatar.Zenject.Internal
             public Type type { get; }
             public string childTransformName { get; }
             public Func<GameObject, bool> condition { get; }
-            public object[] extraArgs { get; }
 
-            public ComponentRegistration(Type type, string childTransformName, Func<GameObject, bool> condition, object[] extraArgs)
+            public ComponentRegistration(Type type, string childTransformName, Func<GameObject, bool> condition)
             {
                 this.type = type;
                 this.childTransformName = childTransformName;
                 this.condition = condition;
-                this.extraArgs = extraArgs;
             }
         }
 
@@ -218,6 +220,7 @@ namespace CustomAvatar.Zenject.Internal
             public static void Postfix(Context __instance)
             {
                 InstallInstallers(__instance);
+                installInstallers?.Invoke(__instance);
             }
         }
 

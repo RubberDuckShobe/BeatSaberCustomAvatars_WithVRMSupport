@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -16,16 +16,20 @@
 
 namespace CustomAvatar.Logging
 {
-    internal interface ILogger<T>
+    internal interface ILogger<out T>
     {
-        string name { get; set; }
+        void LogTrace(object message);
 
-        void Trace(object message);
-        void Debug(object message);
-        void Notice(object message);
-        void Info(object message);
-        void Warning(object message);
-        void Error(object message);
-        void Critical(object message);
+        void LogDebug(object message);
+
+        void LogNotice(object message);
+
+        void LogInformation(object message);
+
+        void LogWarning(object message);
+
+        void LogError(object message);
+
+        void LogCritical(object message);
     }
 }

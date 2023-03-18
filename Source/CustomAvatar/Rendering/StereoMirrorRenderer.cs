@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using CustomAvatar.Avatar;
+using CustomAvatar.Configuration;
 using CustomAvatar.Utilities;
 using System;
 using System.Collections.Generic;
@@ -39,15 +40,15 @@ namespace CustomAvatar.Rendering
         private static readonly Rect kFullRect = new Rect(0f, 0f, 1f, 1f);
 
         private ShaderLoader _shaderLoader;
+        private ActiveCameraManager _activeCameraManager;
+        private Settings _settings;
 
         private Renderer _renderer;
         private Camera _mirrorCamera;
         private int _antiAliasing = 2;
         private readonly Dictionary<Camera, RenderTexture> _renderTextures = new Dictionary<Camera, RenderTexture>();
 
-        public int renderWidth { get; set; } = 1024;
-
-        public int renderHeight { get; set; } = 1024;
+        public float renderScale { get; set; } = 1;
 
         public int antiAliasing
         {
@@ -68,15 +69,17 @@ namespace CustomAvatar.Rendering
 #pragma warning disable IDE0051
 
         [Inject]
-        private void Inject(ShaderLoader shaderLoader)
+        private void Inject(ShaderLoader shaderLoader, ActiveCameraManager activeCameraManager, Settings settings)
         {
             _shaderLoader = shaderLoader;
+            _activeCameraManager = activeCameraManager;
+            _settings = settings;
         }
 
         private void Start()
         {
             _renderer = GetComponent<Renderer>();
-            _renderer.sharedMaterial = new Material(_shaderLoader.stereoMirrorShader);
+            _renderer.material = new Material(_shaderLoader.stereoMirrorShader);
         }
 
         private void Update()
@@ -91,10 +94,7 @@ namespace CustomAvatar.Rendering
 
             Texture mirrorTexture = GetMirrorTexture(position, up);
 
-            if (mirrorTexture)
-            {
-                _renderer.sharedMaterial.SetTexture(kTexturePropertyId, mirrorTexture);
-            }
+            _renderer.material.SetTexture(kTexturePropertyId, mirrorTexture);
         }
 
 #pragma warning restore IDE0051
@@ -114,20 +114,14 @@ namespace CustomAvatar.Rendering
         {
             Camera camera = Camera.current;
 
-            if (!camera || camera == _mirrorCamera || renderWidth <= 0 || renderHeight <= 0)
+            if (!camera || camera == _mirrorCamera || renderScale <= 0)
             {
-                return null;
+                return Texture2D.blackTexture;
             }
 
-            Vector3 cameraPosition = camera.transform.position;
-            Quaternion cameraRotation = camera.transform.rotation;
-            bool stereoEnabled = camera.stereoEnabled;
-            var plane = new Plane(reflectionPlaneNormal, reflectionPlanePosition);
-
-            // don't render if the camera is too close to the mirror to prevent errors
-            if (plane.GetDistanceToPoint(cameraPosition) <= Mathf.Epsilon || (camera.orthographic && Mathf.Abs(Vector3.Dot(camera.transform.forward, reflectionPlaneNormal)) <= Mathf.Epsilon))
+            if (!_settings.mirror.renderInExternalCameras && camera != _activeCameraManager.current)
             {
-                return null;
+                return Texture2D.blackTexture;
             }
 
             // return immediately if we've already rendered for this frame
@@ -135,6 +129,21 @@ namespace CustomAvatar.Rendering
             {
                 return renderTexture;
             }
+
+            Transform cameraTransform = camera.transform;
+            Vector3 cameraPosition = cameraTransform.position;
+            Quaternion cameraRotation = cameraTransform.rotation;
+            var plane = new Plane(reflectionPlaneNormal, reflectionPlanePosition);
+
+            // don't render if the camera is too close to the mirror to prevent errors
+            if (plane.GetDistanceToPoint(cameraPosition) <= Mathf.Epsilon || (camera.orthographic && Mathf.Abs(Vector3.Dot(camera.transform.forward, reflectionPlaneNormal)) <= Mathf.Epsilon))
+            {
+                return Texture2D.blackTexture;
+            }
+
+            bool stereoEnabled = camera.stereoEnabled;
+            int renderWidth = Mathf.RoundToInt(camera.pixelWidth * renderScale);
+            int renderHeight = Mathf.RoundToInt(camera.pixelHeight * renderScale);
 
             renderTexture = RenderTexture.GetTemporary(Mathf.Min(stereoEnabled ? renderWidth * 2 : renderWidth, SystemInfo.maxTextureSize), Mathf.Min(renderHeight, SystemInfo.maxTextureSize), 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, _antiAliasing);
 

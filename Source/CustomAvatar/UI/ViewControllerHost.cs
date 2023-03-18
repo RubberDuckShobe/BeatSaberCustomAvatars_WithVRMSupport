@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -19,7 +19,7 @@ using System.Runtime.CompilerServices;
 
 namespace CustomAvatar.UI
 {
-    internal abstract class ViewControllerHost : INotifyPropertyChanged
+    internal abstract class ViewControllerHost : IViewControllerHost, INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
 

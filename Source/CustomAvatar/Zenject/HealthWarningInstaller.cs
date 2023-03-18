@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -14,7 +14,7 @@
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-using CustomAvatar.Lighting;
+using System;
 using CustomAvatar.Logging;
 using CustomAvatar.Player;
 using UnityEngine;
@@ -35,8 +35,6 @@ namespace CustomAvatar.Zenject
         {
             TryAddEnvironmentObject("/BasicMenuGround");
             TryAddEnvironmentObject("/MenuFogRing (1)");
-
-            Container.BindInterfacesAndSelfTo<MenuLightingCreator>().AsSingle().NonLazy();
         }
 
         private void TryAddEnvironmentObject(string name)
@@ -49,7 +47,7 @@ namespace CustomAvatar.Zenject
             }
             else
             {
-                _logger.Error($"GameObject '{name}' does not exist!");
+                _logger.LogError($"GameObject '{name}' does not exist!");
             }
         }
     }

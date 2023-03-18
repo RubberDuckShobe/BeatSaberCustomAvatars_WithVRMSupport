@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -20,58 +20,51 @@ namespace CustomAvatar.Logging
 {
     internal class IPALogger<T> : ILogger<T>
     {
-        public string name { get; set; }
-
         private readonly Logger _logger;
 
-        public IPALogger(Logger logger)
+        public IPALogger(Logger logger, string name = null)
         {
-            _logger = logger;
-        }
+            _logger = logger.GetChildLogger(typeof(T).Name);
 
-        public void Trace(object message)
-        {
-            _logger.Trace(FormatMessage(message));
-        }
-
-        public void Debug(object message)
-        {
-            _logger.Debug(FormatMessage(message));
-        }
-
-        public void Notice(object message)
-        {
-            _logger.Notice(FormatMessage(message));
-        }
-
-        public void Info(object message)
-        {
-            _logger.Info(FormatMessage(message));
-        }
-
-        public void Warning(object message)
-        {
-            _logger.Warn(FormatMessage(message));
-        }
-
-        public void Error(object message)
-        {
-            _logger.Error(FormatMessage(message));
-        }
-
-        public void Critical(object message)
-        {
-            _logger.Critical(FormatMessage(message));
-        }
-
-        private string FormatMessage(object message)
-        {
-            if (string.IsNullOrEmpty(name))
+            if (!string.IsNullOrEmpty(name))
             {
-                return $"[{typeof(T).Name}] {message}";
+                _logger = _logger.GetChildLogger(name);
             }
+        }
 
-            return $"[{typeof(T).Name}({name})] {message}";
+        public void LogTrace(object message)
+        {
+            _logger.Trace(message?.ToString());
+        }
+
+        public void LogDebug(object message)
+        {
+            _logger.Debug(message?.ToString());
+        }
+
+        public void LogNotice(object message)
+        {
+            _logger.Notice(message?.ToString());
+        }
+
+        public void LogInformation(object message)
+        {
+            _logger.Info(message?.ToString());
+        }
+
+        public void LogWarning(object message)
+        {
+            _logger.Warn(message?.ToString());
+        }
+
+        public void LogError(object message)
+        {
+            _logger.Error(message?.ToString());
+        }
+
+        public void LogCritical(object message)
+        {
+            _logger.Critical(message?.ToString());
         }
     }
 }
