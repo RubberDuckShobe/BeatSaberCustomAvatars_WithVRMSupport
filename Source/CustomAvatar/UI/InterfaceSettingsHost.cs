@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -38,6 +38,12 @@ namespace CustomAvatar.UI
         {
             get => _settings.mirror.antiAliasingLevel;
             set => _settings.mirror.antiAliasingLevel.value = value;
+        }
+
+        internal bool renderInExternalCameras
+        {
+            get => _settings.mirror.renderInExternalCameras;
+            set => _settings.mirror.renderInExternalCameras = value;
         }
 
         internal List<object> antiAliasingLevelOptions = new List<object>(new object[] { 1, 2, 4, 8 });

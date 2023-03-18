@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -86,7 +86,7 @@ namespace CustomAvatar.Avatar
         private ILogger<AvatarPrefab> _logger;
 
         [Inject]
-        internal void Construct(string fullPath, ILogger<AvatarPrefab> logger, IKHelper ikHelper, DiContainer container)
+        internal void Construct(string fullPath, ILoggerFactory loggerFactory, IKHelper ikHelper, DiContainer container)
         {
             this.fullPath = fullPath ?? throw new ArgumentNullException(nameof(fullPath));
             descriptor = GetComponent<AvatarDescriptor>() ?? throw new AvatarLoadException($"Avatar at '{fullPath}' does not have an AvatarDescriptor");
@@ -94,8 +94,7 @@ namespace CustomAvatar.Avatar
 
             fileName = Path.GetFileName(fullPath);
 
-            _logger = logger;
-            _logger.name = descriptor.name;
+            _logger = loggerFactory.CreateLogger<AvatarPrefab>(descriptor.name);
 
 #pragma warning disable CS0618
             VRIKManager vrikManager = GetComponentInChildren<VRIKManager>();
@@ -107,7 +106,7 @@ namespace CustomAvatar.Avatar
             {
                 if (!vrikManager) vrikManager = container.InstantiateComponent<VRIKManager>(gameObject);
 
-                _logger.Warning("IKManager and IKManagerAdvanced are deprecated; please migrate to VRIKManager");
+                _logger.LogWarning("IKManager and IKManagerAdvanced are deprecated; please migrate to VRIKManager");
 
                 ApplyIKManagerFields(vrikManager, ikManager);
                 Destroy(ikManager);
@@ -117,7 +116,7 @@ namespace CustomAvatar.Avatar
             {
                 if (!vrikManager.areReferencesFilled)
                 {
-                    _logger.Warning($"References are not filled on '{vrikManager.name}'; detecting references automatically");
+                    _logger.LogWarning($"References are not filled on '{vrikManager.name}'; detecting references automatically");
                     vrikManager.AutoDetectReferences();
                 }
             }
@@ -125,11 +124,11 @@ namespace CustomAvatar.Avatar
             // remove any existing VRIK instances
             foreach (VRIK existingVrik in GetComponentsInChildren<VRIK>())
             {
-                _logger.Warning($"Found VRIK on '{existingVrik.name}'; manually adding VRIK to an avatar is no longer needed, please remove it");
+                _logger.LogWarning($"Found VRIK on '{existingVrik.name}'; manually adding VRIK to an avatar is no longer needed, please remove it");
 
                 if (existingVrik && vrikManager && existingVrik.references.isFilled && !vrikManager.areReferencesFilled)
                 {
-                    _logger.Warning($"Copying references from VRIK on '{existingVrik.name}'; this is deprecated behaviour and will be removed in a future release");
+                    _logger.LogWarning($"Copying references from VRIK on '{existingVrik.name}'; this is deprecated behaviour and will be removed in a future release");
                     CopyReferencesFromExistingVrik(vrikManager, existingVrik.references);
                 }
 
@@ -144,7 +143,7 @@ namespace CustomAvatar.Avatar
                 }
                 else
                 {
-                    _logger.Warning("VRIKManager references are not filled; avatar will probably not work as expected");
+                    _logger.LogWarning("VRIKManager references are not filled; avatar will probably not work as expected");
                 }
             }
 
@@ -171,7 +170,7 @@ namespace CustomAvatar.Avatar
 
             if (transform.localPosition.sqrMagnitude > 0)
             {
-                _logger.Warning("Avatar root position is not at origin; this may cause unexpected issues");
+                _logger.LogWarning("Avatar root position is not at origin; this may cause unexpected issues");
             }
 
             PoseManager poseManager = GetComponentInChildren<PoseManager>();
@@ -191,15 +190,15 @@ namespace CustomAvatar.Avatar
         {
             if (!target) return;
 
-            if (positionWeight <= 0.1f) _logger.Warning($"{name} position weight is very small ({positionWeight:0.00}); is that on purpose?");
-            if (rotationWeight <= 0.1f) _logger.Warning($"{name} rotation weight is very small ({rotationWeight:0.00}); is that on purpose?");
+            if (positionWeight <= 0.1f) _logger.LogWarning($"{name} position weight is very small ({positionWeight:0.00}); is that on purpose?");
+            if (rotationWeight <= 0.1f) _logger.LogWarning($"{name} rotation weight is very small ({rotationWeight:0.00}); is that on purpose?");
         }
 
         private float GetEyeHeight()
         {
             if (!head)
             {
-                _logger.Warning("Avatar does not have a head tracking reference");
+                _logger.LogWarning("Avatar does not have a head tracking reference");
                 return BeatSaberUtilities.kDefaultPlayerEyeHeight;
             }
 
@@ -211,7 +210,7 @@ namespace CustomAvatar.Avatar
             // many avatars rely on this being global because their root position isn't at (0, 0, 0)
             float eyeHeight = head.position.y;
 
-            _logger.Trace($"Measured eye height: {eyeHeight} m");
+            _logger.LogTrace($"Measured eye height: {eyeHeight} m");
 
             return eyeHeight;
         }
@@ -230,7 +229,7 @@ namespace CustomAvatar.Avatar
         {
             if (!reference)
             {
-                _logger.Warning($"Could not find {name} reference");
+                _logger.LogWarning($"Could not find {name} reference");
                 return;
             }
 
@@ -246,7 +245,7 @@ namespace CustomAvatar.Avatar
             if (offset.magnitude > 0.001f)
             {
                 // manually putting each coordinate gives more resolution
-                _logger.Warning($"{name} bone and target are not at the same position; moving '{tracker.name}' by ({offset.x:0.000}, {offset.y:0.000}, {offset.z:0.000})");
+                _logger.LogWarning($"{name} bone and target are not at the same position; moving '{tracker.name}' by ({offset.x:0.000}, {offset.y:0.000}, {offset.z:0.000})");
                 tracker.position -= offset;
             }
         }
@@ -271,13 +270,13 @@ namespace CustomAvatar.Avatar
 
             if (!leftShoulder || !leftUpperArm || !leftLowerArm || !leftWrist || !rightShoulder || !rightUpperArm || !rightLowerArm || !rightWrist)
             {
-                _logger.Warning("Could not calculate avatar arm span due to missing bones");
+                _logger.LogWarning("Could not calculate avatar arm span due to missing bones");
                 return BeatSaberUtilities.kDefaultPlayerArmSpan;
             }
 
             if (!leftHand || !rightHand)
             {
-                _logger.Warning("Could not calculate avatar arm span due to missing tracking references");
+                _logger.LogWarning("Could not calculate avatar arm span due to missing tracking references");
                 return BeatSaberUtilities.kDefaultPlayerArmSpan;
             }
 

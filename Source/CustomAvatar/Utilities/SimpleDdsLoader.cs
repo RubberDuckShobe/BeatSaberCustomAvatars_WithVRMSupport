@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -80,21 +80,13 @@ namespace CustomAvatar.Utilities
             }
 
             string fourCC = header.ddsPixelFormat.fourCC;
-            TextureFormat textureFormat;
 
-            switch (fourCC)
+            TextureFormat textureFormat = fourCC switch
             {
-                case "DXT1":
-                    textureFormat = TextureFormat.DXT1;
-                    break;
-
-                case "DXT5":
-                    textureFormat = TextureFormat.DXT5;
-                    break;
-
-                default:
-                    throw new IOException($"Unsupported DDS compression format '{fourCC}'");
-            }
+                "DXT1" => TextureFormat.DXT1,
+                "DXT5" => TextureFormat.DXT5,
+                _ => throw new IOException($"Unsupported DDS compression format '{fourCC}'"),
+            };
 
             var texture = new Texture2D(header.width, header.height, textureFormat, mipMapCount, linear);
 

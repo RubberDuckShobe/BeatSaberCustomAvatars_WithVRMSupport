@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -14,9 +14,11 @@
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+using System;
+using System.Collections;
 using CustomAvatar.Logging;
 using CustomAvatar.Player;
-using System;
+using CustomAvatar.Utilities;
 using Zenject;
 
 namespace CustomAvatar.Avatar
@@ -27,40 +29,52 @@ namespace CustomAvatar.Avatar
         private readonly PlayerAvatarManager _avatarManager;
         private readonly ScoreController _scoreController;
         private readonly ComboController _comboController;
-        private readonly BeatmapObjectManager _beatmapObjectManager;
+        private readonly BeatmapObjectEventFilter _beatmapObjectEventFilter;
         private readonly ILevelEndActions _levelEndActions;
         private readonly IMultiplayerLevelEndActionsPublisher _multiplayerLevelEndActions;
         private readonly ObstacleSaberSparkleEffectManager _sparkleEffectManager;
+        private readonly GameScenesManager _gameScenesManager;
 
         private EventManager _eventManager;
 
-        #region Behaviour Lifecycle
+        private int _lastCombo = -1;
+        private int _lastMultiplier = -1;
 
-        public AvatarGameplayEventsPlayer(ILogger<AvatarGameplayEventsPlayer> logger, PlayerAvatarManager avatarManager, ScoreController scoreController, ComboController comboController, BeatmapObjectManager beatmapObjectManager, [InjectOptional] ILevelEndActions levelEndActions, [InjectOptional] IMultiplayerLevelEndActionsPublisher multiplayerLevelEndActions, ObstacleSaberSparkleEffectManager sparkleEffectManager)
+        public AvatarGameplayEventsPlayer(
+            ILogger<AvatarGameplayEventsPlayer> logger,
+            PlayerAvatarManager avatarManager,
+            ScoreController scoreController,
+            ComboController comboController,
+            BeatmapObjectEventFilter beatmapObjectEventFilter,
+            [InjectOptional] ILevelEndActions levelEndActions,
+            [InjectOptional] IMultiplayerLevelEndActionsPublisher multiplayerLevelEndActions,
+            ObstacleSaberSparkleEffectManager sparkleEffectManager,
+            GameScenesManager gameScenesManager)
         {
             _logger = logger;
             _avatarManager = avatarManager;
             _scoreController = scoreController;
             _comboController = comboController;
-            _beatmapObjectManager = beatmapObjectManager;
+            _beatmapObjectEventFilter = beatmapObjectEventFilter;
             _levelEndActions = levelEndActions;
             _multiplayerLevelEndActions = multiplayerLevelEndActions;
             _sparkleEffectManager = sparkleEffectManager;
+            _gameScenesManager = gameScenesManager;
         }
 
         public void Initialize()
         {
             _eventManager = _avatarManager.currentlySpawnedAvatar ? _avatarManager.currentlySpawnedAvatar.GetComponent<EventManager>() : null;
 
-            if (!_eventManager)
+            if (_eventManager == null)
             {
-                _logger.Info("No EventManager found on current avatar; events will not be triggered");
+                _logger.LogInformation("No EventManager found on current avatar; events will not be triggered");
                 return;
             }
 
-            _eventManager.OnLevelStart?.Invoke();
-
-            _beatmapObjectManager.noteWasCutEvent += OnNoteWasCut;
+            _beatmapObjectEventFilter.noteGoodCut += OnNoteGoodCut;
+            _beatmapObjectEventFilter.noteBadCut += OnNoteBadCut;
+            _beatmapObjectEventFilter.noteMissed += OnNoteMissed;
 
             _scoreController.multiplierDidChangeEvent += OnMultiplierDidChange;
 
@@ -79,11 +93,15 @@ namespace CustomAvatar.Avatar
             {
                 _multiplayerLevelEndActions.playerDidFinishEvent += OnPlayerDidFinish;
             }
+
+            SharedCoroutineStarter.instance.StartCoroutine(TriggerOnLevelStart());
         }
 
         public void Dispose()
         {
-            _beatmapObjectManager.noteWasCutEvent -= OnNoteWasCut;
+            _beatmapObjectEventFilter.noteGoodCut -= OnNoteGoodCut;
+            _beatmapObjectEventFilter.noteBadCut -= OnNoteBadCut;
+            _beatmapObjectEventFilter.noteMissed -= OnNoteMissed;
 
             _scoreController.multiplierDidChangeEvent -= OnMultiplierDidChange;
 
@@ -104,62 +122,109 @@ namespace CustomAvatar.Avatar
             }
         }
 
-        #endregion
-
-        private void OnNoteWasCut(NoteController noteController, in NoteCutInfo cutInfo)
+        private IEnumerator TriggerOnLevelStart()
         {
-            if (cutInfo.allIsOK)
+            yield return _gameScenesManager.waitUntilSceneTransitionFinish;
+
+            _eventManager.levelStarted.Invoke();
+        }
+
+        private void OnNoteGoodCut(NoteController noteController, in NoteCutInfo noteCutInfo)
+        {
+            if (IsLeftSaber(noteCutInfo.saberType))
             {
-                _logger.Trace("Invoke OnSlice");
-                _eventManager.OnSlice?.Invoke();
+                _eventManager.leftGoodCut.Invoke();
+            }
+            else
+            {
+                _eventManager.rightGoodCut.Invoke();
+            }
+        }
+
+        private void OnNoteBadCut(NoteController noteController, in NoteCutInfo noteCutInfo)
+        {
+            if (IsLeftSaber(noteCutInfo.saberType))
+            {
+                _eventManager.leftBadCut.Invoke();
+            }
+            else
+            {
+                _eventManager.rightBadCut.Invoke();
+            }
+        }
+
+        private void OnNoteMissed(NoteController noteController)
+        {
+            if (IsLeftColor(noteController.noteData.colorType))
+            {
+                _eventManager.leftNoteMissed.Invoke();
+            }
+            else
+            {
+                _eventManager.rightNoteMissed.Invoke();
             }
         }
 
         private void OnMultiplierDidChange(int multiplier, float progress)
         {
-            if (multiplier > 1 && progress < 0.1f)
+            if (multiplier > _lastMultiplier)
             {
-                _logger.Trace("Invoke MultiplierUp");
-                _eventManager.MultiplierUp?.Invoke();
+                _eventManager.multiplierIncreased.Invoke(multiplier);
             }
+            else if (multiplier < _lastMultiplier)
+            {
+                _eventManager.multiplierDecreased.Invoke(multiplier);
+            }
+
+            _lastMultiplier = multiplier;
         }
 
         private void OnComboDidChange(int combo)
         {
-            if (combo > 0)
+            if (combo > _lastCombo)
             {
-                _logger.Trace("Invoke OnComboChanged");
-                _eventManager.OnComboChanged?.Invoke(combo);
+                _eventManager.comboIncreased.Invoke(combo);
             }
-            else
+            else if (combo == 0)
             {
-                _logger.Trace("Invoke OnComboBreak");
-                _eventManager.OnComboBreak?.Invoke();
+                _eventManager.comboBroken.Invoke();
             }
+
+            _lastCombo = combo;
         }
 
         private void OnSparkleEffectDidStart(SaberType saberType)
         {
-            _logger.Trace("Invoke SaberStartColliding");
-            _eventManager.SaberStartColliding?.Invoke();
+            if (IsLeftSaber(saberType))
+            {
+                _eventManager.leftSaberStartedColliding.Invoke();
+            }
+            else
+            {
+                _eventManager.rightSaberStartedColliding.Invoke();
+            }
         }
 
         private void OnSparkleEffectDidEnd(SaberType saberType)
         {
-            _logger.Trace("Invoke SaberStopColliding");
-            _eventManager.SaberStopColliding?.Invoke();
+            if (IsLeftSaber(saberType))
+            {
+                _eventManager.leftSaberStoppedColliding.Invoke();
+            }
+            else
+            {
+                _eventManager.rightSaberStoppedColliding.Invoke();
+            }
         }
 
         private void OnLevelFinished()
         {
-            _logger.Trace("Invoke OnLevelFinish");
-            _eventManager.OnLevelFinish?.Invoke();
+            _eventManager.levelFinished.Invoke();
         }
 
         private void OnLevelFailed()
         {
-            _logger.Trace("Invoke OnLevelFail");
-            _eventManager.OnLevelFail?.Invoke();
+            _eventManager.levelFailed.Invoke();
         }
 
         private void OnPlayerDidFinish(MultiplayerLevelCompletionResults results)
@@ -167,15 +232,17 @@ namespace CustomAvatar.Avatar
             switch (results.playerLevelEndState)
             {
                 case MultiplayerLevelCompletionResults.MultiplayerPlayerLevelEndState.SongFinished:
-                    _logger.Trace("Invoke OnLevelFinish");
-                    _eventManager.OnLevelFinish?.Invoke();
+                    OnLevelFinished();
                     break;
 
                 case MultiplayerLevelCompletionResults.MultiplayerPlayerLevelEndState.NotFinished:
-                    _logger.Trace("Invoke OnLevelFail");
-                    _eventManager.OnLevelFail?.Invoke();
+                    OnLevelFailed();
                     break;
             }
         }
+
+        private bool IsLeftSaber(SaberType saberType) => saberType == SaberType.SaberA;
+
+        private bool IsLeftColor(ColorType colorType) => colorType == ColorType.ColorA;
     }
 }

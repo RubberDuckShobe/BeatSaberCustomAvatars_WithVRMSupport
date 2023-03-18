@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -84,7 +84,7 @@ namespace CustomAvatar.Tracking.UnityXR
 
                     if (inputDevice.characteristics != existingDevice.characteristics)
                     {
-                        _logger.Info($"Characteristics of device '{existingDevice.id}' changed from {existingDevice.characteristics} to {inputDevice.characteristics}");
+                        _logger.LogInformation($"Characteristics of device '{existingDevice.id}' changed from {existingDevice.characteristics} to {inputDevice.characteristics}");
                         changeDetected = true;
                     }
 
@@ -92,11 +92,11 @@ namespace CustomAvatar.Tracking.UnityXR
                     {
                         if (isTracked)
                         {
-                            _logger.Info($"Acquired tracking of device '{existingDevice.id}'");
+                            _logger.LogInformation($"Acquired tracking of device '{existingDevice.id}'");
                         }
                         else
                         {
-                            _logger.Info($"Lost tracking of device '{existingDevice.id}'");
+                            _logger.LogInformation($"Lost tracking of device '{existingDevice.id}'");
                         }
 
                         changeDetected = true;
@@ -117,7 +117,7 @@ namespace CustomAvatar.Tracking.UnityXR
                         id = inputDevice.name;
                     }
 
-                    _logger.Info($"Device '{id}' connected with characteristics {inputDevice.characteristics}");
+                    _logger.LogInformation($"Device '{id}' connected with characteristics {inputDevice.characteristics}");
 
                     _devices.Add(inputDevice.name, new UnityXRDevice(id, true, isTracked, inputDevice.characteristics));
 
@@ -141,7 +141,7 @@ namespace CustomAvatar.Tracking.UnityXR
         {
             if (_devices.TryGetValue(device.name, out UnityXRDevice existingDevice))
             {
-                _logger.Info($"Device '{existingDevice.id}' disconnected");
+                _logger.LogInformation($"Device '{existingDevice.id}' disconnected");
                 _devices.Remove(device.name);
 
                 _deviceRemovedSinceLastCall = true;

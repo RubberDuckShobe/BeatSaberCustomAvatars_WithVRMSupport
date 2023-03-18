@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -54,7 +54,7 @@ namespace CustomAvatar.Utilities
 
             if (!reference)
             {
-                _logger.Warning($"Reference for {name} is missing");
+                _logger.LogWarning($"Reference for {name} is missing");
                 return;
             }
 
@@ -66,7 +66,7 @@ namespace CustomAvatar.Utilities
             positionWeight = 1;
             rotationWeight = 1;
 
-            _logger.Trace($"Created offset IK target for '{name}'");
+            _logger.LogTrace($"Created offset IK target for '{name}'");
         }
 
         private void CreateTargetsIfMissing(VRIKManager vrikManager, Transform root)
@@ -88,7 +88,7 @@ namespace CustomAvatar.Utilities
             newTarget.SetParent(parent, false);
             newTarget.SetPositionAndRotation(reference.position, reference.rotation);
 
-            _logger.Trace($"Created IK target for '{parent.name}'");
+            _logger.LogTrace($"Created IK target for '{parent.name}'");
 
             return newTarget;
         }

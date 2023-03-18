@@ -1,5 +1,5 @@
 //  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -19,7 +19,6 @@ extern alias BeatSaberFinalIK;
 using System;
 using CustomAvatar.Logging;
 using CustomAvatar.Tracking;
-using CustomAvatar.Utilities;
 using UnityEngine;
 using Zenject;
 
@@ -59,7 +58,7 @@ namespace CustomAvatar.Avatar
                 if (float.IsInfinity(value)) throw new InvalidOperationException("Scale cannot be infinity");
 
                 transform.localScale = _initialLocalScale * value;
-                _logger.Info("Avatar resized with scale: " + value);
+                _logger.LogInformation("Avatar resized with scale: " + value);
             }
         }
 
@@ -81,11 +80,9 @@ namespace CustomAvatar.Avatar
         [Obsolete("Get isLocomotionEnabled on the AvatarIK component instead")] internal bool isLocomotionEnabled { get; private set; }
 
         private ILogger<SpawnedAvatar> _logger;
-        private GameScenesManager _gameScenesManager;
 
         private FirstPersonExclusion[] _firstPersonExclusions;
         private Renderer[] _renderers;
-        private EventManager _eventManager;
 
         private Vector3 _initialLocalPosition;
         private Vector3 _initialLocalScale;
@@ -157,7 +154,6 @@ namespace CustomAvatar.Avatar
             _initialLocalPosition = transform.localPosition;
             _initialLocalScale = transform.localScale;
 
-            _eventManager = GetComponent<EventManager>();
             _firstPersonExclusions = GetComponentsInChildren<FirstPersonExclusion>();
             _renderers = GetComponentsInChildren<Renderer>();
 
@@ -171,7 +167,7 @@ namespace CustomAvatar.Avatar
         }
 
         [Inject]
-        private void Construct(ILogger<SpawnedAvatar> logger, AvatarPrefab avatarPrefab, IAvatarInput avatarInput, GameScenesManager gameScenesManager)
+        private void Construct(ILoggerFactory loggerFactory, AvatarPrefab avatarPrefab, IAvatarInput avatarInput)
         {
             prefab = avatarPrefab;
             input = avatarInput;
@@ -180,10 +176,7 @@ namespace CustomAvatar.Avatar
             avatar = avatarPrefab.loadedAvatar;
 #pragma warning restore CS0612, CS0618
 
-            _logger = logger;
-            _gameScenesManager = gameScenesManager;
-
-            _logger.name = prefab.descriptor.name;
+            _logger = loggerFactory.CreateLogger<SpawnedAvatar>(prefab.descriptor.name);
         }
 
         private void Start()
@@ -192,31 +185,17 @@ namespace CustomAvatar.Avatar
 
             if (_initialLocalPosition.sqrMagnitude > 0)
             {
-                _logger.Warning("Avatar root position is not at origin; resizing by height and floor adjust may not work properly.");
+                _logger.LogWarning("Avatar root position is not at origin; resizing by height and floor adjust may not work properly.");
             }
-
-            _gameScenesManager.transitionDidFinishEvent += OnTransitionDidFinish;
         }
 
         private void OnDestroy()
         {
-            _gameScenesManager.transitionDidFinishEvent -= OnTransitionDidFinish;
-
             Destroy(gameObject);
         }
 
 #pragma warning restore IDE0051
         #endregion
-
-        private void OnTransitionDidFinish(ScenesTransitionSetupDataSO setupData, DiContainer container)
-        {
-            if (!_eventManager) return;
-
-            if (_gameScenesManager.IsSceneInStackAndActive("MenuCore"))
-            {
-                _eventManager.OnMenuEnter?.Invoke();
-            }
-        }
 
         private void SetChildrenToLayer(int layer)
         {
@@ -234,7 +213,7 @@ namespace CustomAvatar.Avatar
                 {
                     if (!gameObj) continue;
 
-                    _logger.Trace($"Excluding '{gameObj.name}' from first person view");
+                    _logger.LogTrace($"Excluding '{gameObj.name}' from first person view");
                     gameObj.layer = AvatarLayers.kOnlyInThirdPerson;
                 }
             }

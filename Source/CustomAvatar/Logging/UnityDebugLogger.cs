@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -25,34 +25,34 @@ namespace CustomAvatar.Logging
             this.name = name;
         }
 
-        public void Trace(object message) { }
+        public void LogTrace(object message) { }
 
-        public void Debug(object message)
+        public void LogDebug(object message)
         {
             UnityEngine.Debug.Log(FormatMessage("DEBUG", message));
         }
 
-        public void Notice(object message)
+        public void LogNotice(object message)
         {
             UnityEngine.Debug.Log(FormatMessage("NOTICE", message));
         }
 
-        public void Info(object message)
+        public void LogInformation(object message)
         {
             UnityEngine.Debug.Log(FormatMessage("INFO", message));
         }
 
-        public void Warning(object message)
+        public void LogWarning(object message)
         {
             UnityEngine.Debug.LogWarning(FormatMessage("WARNING", message));
         }
 
-        public void Error(object message)
+        public void LogError(object message)
         {
             UnityEngine.Debug.LogError(FormatMessage("ERROR", message));
         }
 
-        public void Critical(object message)
+        public void LogCritical(object message)
         {
             UnityEngine.Debug.LogError(FormatMessage("CRITICAL", message));
         }

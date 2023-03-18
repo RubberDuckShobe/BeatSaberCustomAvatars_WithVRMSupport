@@ -6,6 +6,7 @@
     <TargetFramework>net472</TargetFramework>
     <PathMap>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)=$(MSBuildProjectName)</PathMap>
     <Platforms>x64</Platforms>
+    <LangVersion>8</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="$(Configuration) == 'Release'">
     <DebugType>none</DebugType>
@@ -13,7 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>..\..\Libraries\0Harmony.dll</HintPath>
+      <HintPath>$(BeatSaberDir)\Libs\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="BeatmapCore">
@@ -25,7 +26,7 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="BSML">
-      <HintPath>..\..\Libraries\BSML.dll</HintPath>
+      <HintPath>$(BeatSaberDir)\Plugins\BSML.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="CombinedVRMDll">
@@ -38,7 +39,7 @@
       <Aliases>BeatSaberDynamicBone</Aliases>
     </Reference>
     <Reference Include="DynamicOpenVR">
-      <HintPath>..\..\Libraries\DynamicOpenVR.dll</HintPath>
+      <HintPath>$(BeatSaberDir)\Libs\DynamicOpenVR.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FinalIK">
@@ -62,16 +63,8 @@
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\HMUI.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="IPA.Injector">
-      <HintPath>..\..\Libraries\IPA.Injector.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="IPA.Loader">
-      <HintPath>..\..\Libraries\IPA.Loader.dll</HintPath>
+      <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\IPA.Loader.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Main">
@@ -79,7 +72,7 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\..\Libraries\Newtonsoft.Json.dll</HintPath>
+      <HintPath>$(BeatSaberDir)\Libs\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Polyglot">
@@ -88,6 +81,10 @@
     </Reference>
     <Reference Include="Rendering">
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Rendering.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SiraUtil">
+      <HintPath>$(BeatSaberDir)\Plugins\SiraUtil.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
@@ -206,11 +203,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="3.10.0">
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="4.3.0-3.final">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Unity.Analyzers" Version="1.11.0">
+    <PackageReference Include="Microsoft.Unity.Analyzers" Version="1.14.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

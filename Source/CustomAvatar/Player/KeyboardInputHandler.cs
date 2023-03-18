@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -49,17 +49,17 @@ namespace CustomAvatar.Player
             else if (Input.GetKeyDown(KeyCode.Home))
             {
                 _settings.isAvatarVisibleInFirstPerson.value = !_settings.isAvatarVisibleInFirstPerson;
-                _logger.Info($"{(_settings.isAvatarVisibleInFirstPerson.value ? "Enabled" : "Disabled")} first person visibility");
+                _logger.LogInformation($"{(_settings.isAvatarVisibleInFirstPerson.value ? "Enabled" : "Disabled")} first person visibility");
             }
             else if (Input.GetKeyDown(KeyCode.End))
             {
                 _settings.resizeMode.value = (AvatarResizeMode)(((int)_settings.resizeMode.value + 1) % 3);
-                _logger.Info($"Set resize mode to {_settings.resizeMode}");
+                _logger.LogInformation($"Set resize mode to {_settings.resizeMode}");
             }
             else if (Input.GetKeyDown(KeyCode.Insert))
             {
                 _settings.floorHeightAdjust.value = (FloorHeightAdjustMode)(((int)_settings.floorHeightAdjust.value + 1) % Enum.GetValues(typeof(FloorHeightAdjustMode)).Length);
-                _logger.Info($"Set floor height adjust to {_settings.floorHeightAdjust}");
+                _logger.LogInformation($"Set floor height adjust to {_settings.floorHeightAdjust}");
             }
         }
     }

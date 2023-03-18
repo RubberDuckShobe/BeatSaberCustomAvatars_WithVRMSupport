@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -14,12 +14,14 @@
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-using CustomAvatar.Avatar;
-using CustomAvatar.Player;
 using System.Collections.Generic;
-using UnityEngine;
+using CustomAvatar.Avatar;
 using CustomAvatar.Configuration;
+using CustomAvatar.Player;
 using CustomAvatar.Tracking;
+using CustomAvatar.Utilities;
+using UnityEngine;
+using UnityEngine.XR;
 
 namespace CustomAvatar.UI
 {
@@ -34,16 +36,14 @@ namespace CustomAvatar.UI
 
         private readonly VRPlayerInputInternal _playerInput;
         private readonly Settings _settings;
-        private readonly PlayerDataModel _playerDataModel;
         private readonly ArmSpanMeasurer _armSpanMeasurer;
 
         private float _armSpan;
 
-        internal GeneralSettingsHost(VRPlayerInputInternal playerInput, Settings settings, PlayerDataModel playerDataModel, ArmSpanMeasurer armSpanMeasurer)
+        internal GeneralSettingsHost(VRPlayerInputInternal playerInput, Settings settings, ArmSpanMeasurer armSpanMeasurer)
         {
             _playerInput = playerInput;
             _settings = settings;
-            _playerDataModel = playerDataModel;
             _armSpanMeasurer = armSpanMeasurer;
         }
 
@@ -84,7 +84,6 @@ namespace CustomAvatar.UI
             {
                 _settings.resizeMode.value = value;
                 NotifyPropertyChanged();
-                NotifyPropertyChanged(nameof(showHeightAdjustWarning));
             }
         }
 
@@ -138,7 +137,17 @@ namespace CustomAvatar.UI
 
         public bool isHeightAdjustInteractable => !_armSpanMeasurer.isMeasuring;
 
-        public bool showHeightAdjustWarning => _settings.resizeMode != AvatarResizeMode.None && _playerDataModel.playerData.playerSpecificSettings.automaticPlayerHeight;
+        public float height
+        {
+            get => _settings.playerEyeHeight;
+            set
+            {
+                _settings.playerEyeHeight.value = value;
+                NotifyPropertyChanged();
+
+                resizeMode = AvatarResizeMode.Height;
+            }
+        }
 
         public float armSpan
         {
@@ -162,7 +171,6 @@ namespace CustomAvatar.UI
             _armSpan = _settings.playerArmSpan;
             NotifyPropertyChanged(nameof(armSpan));
 
-            NotifyPropertyChanged(nameof(showHeightAdjustWarning));
             OnPlayerInputChanged();
         }
 
@@ -198,35 +206,46 @@ namespace CustomAvatar.UI
 
         private string ResizeModeFormatter(object value)
         {
-            if (!(value is AvatarResizeMode avatarResizeMode)) return null;
-
-            switch (avatarResizeMode)
+            if (!(value is AvatarResizeMode avatarResizeMode))
             {
-                case AvatarResizeMode.Height:
-                    return "Height";
-                case AvatarResizeMode.ArmSpan:
-                    return "Arm Span";
-                case AvatarResizeMode.None:
-                    return "Don't Resize";
-                default:
-                    return null;
+                return null;
             }
+
+            return avatarResizeMode switch
+            {
+                AvatarResizeMode.Height => "Height",
+                AvatarResizeMode.ArmSpan => "Arm Span",
+                AvatarResizeMode.None => "Don't Resize",
+                _ => null,
+            };
         }
 
         private string FloorHeightAdjustFormatter(object value)
         {
-            if (!(value is FloorHeightAdjustMode floorHeightAdjustMode)) return null;
-
-            switch (floorHeightAdjustMode)
+            if (!(value is FloorHeightAdjustMode floorHeightAdjustMode))
             {
-                case FloorHeightAdjustMode.Off:
-                    return "Off";
-                case FloorHeightAdjustMode.PlayersPlaceOnly:
-                    return "Player's Place Only";
-                case FloorHeightAdjustMode.EntireEnvironment:
-                    return "Entire Environment";
-                default:
-                    return null;
+                return null;
+            }
+
+            return floorHeightAdjustMode switch
+            {
+                FloorHeightAdjustMode.Off => "Off",
+                FloorHeightAdjustMode.PlayersPlaceOnly => "Player's Place Only",
+                FloorHeightAdjustMode.EntireEnvironment => "Entire Environment",
+                _ => null,
+            };
+        }
+
+        private string HeightFormatter(float value)
+        {
+            return $"{value + BeatSaberUtilities.kHeadPosToPlayerHeightOffset:0.00} m";
+        }
+
+        private void OnMeasureHeightButtonClicked()
+        {
+            if (InputDevices.GetDeviceAtXRNode(XRNode.Head).TryGetFeatureValue(CommonUsages.devicePosition, out Vector3 position))
+            {
+                this.height = Mathf.Round(position.y * 100) / 100;
             }
         }
 

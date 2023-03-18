@@ -1,5 +1,5 @@
 //  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -121,12 +121,12 @@ namespace CustomAvatar.UI
 
                 _fileSystemWatcher.EnableRaisingEvents = true;
 
-                _logger.Trace($"Watching files in '{_fileSystemWatcher.Path}' ({_fileSystemWatcher.Filter})");
+                _logger.LogTrace($"Watching files in '{_fileSystemWatcher.Path}' ({_fileSystemWatcher.Filter})");
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to create FileSystemWatcher");
-                _logger.Error(ex);
+                _logger.LogError("Failed to create FileSystemWatcher");
+                _logger.LogError(ex);
             }
 
             await ReloadAvatars();
@@ -164,6 +164,10 @@ namespace CustomAvatar.UI
             DestroyImmediate(gameObject.transform.Find("SongTime").gameObject);
             DestroyImmediate(gameObject.transform.Find("SongBpm").gameObject);
             DestroyImmediate(gameObject.transform.Find("BpmIcon").gameObject);
+            DestroyImmediate(gameObject.transform.Find("PromoBackground").gameObject);
+            DestroyImmediate(gameObject.transform.Find("AvatarName/PromoBadge").gameObject);
+            DestroyImmediate(gameObject.transform.Find("AvatarName/UpdatedBadge").gameObject);
+            DestroyImmediate(gameObject.transform.Find("AvatarName").GetComponent<LayoutWidthLimiter>());
 
             return tableCell;
         }
@@ -278,7 +282,7 @@ namespace CustomAvatar.UI
         private async void OnAvatarFileCreatedOrChanged(object sender, FileSystemEventArgs e)
         {
             string fileName = Path.GetFileName(e.FullPath);
-            _logger.Trace($"File {e.ChangeType}: '{fileName}'");
+            _logger.LogTrace($"File {e.ChangeType}: '{fileName}'");
 
             await UnityMainThreadTaskScheduler.Factory.StartNew(async () =>
             {
@@ -310,7 +314,7 @@ namespace CustomAvatar.UI
         private async void OnAvatarFileDeleted(object sender, FileSystemEventArgs e)
         {
             string fileName = Path.GetFileName(e.FullPath);
-            _logger.Trace($"File Deleted: '{fileName}'");
+            _logger.LogTrace($"File Deleted: '{fileName}'");
 
             await UnityMainThreadTaskScheduler.Factory.StartNew(() =>
             {
@@ -387,8 +391,8 @@ namespace CustomAvatar.UI
             }
             catch (Exception ex)
             {
-                _logger.Error($"Failed to load avatar '{avatar.fileName}'");
-                _logger.Error(ex);
+                _logger.LogError($"Failed to load avatar '{avatar.fileName}'");
+                _logger.LogError(ex);
 
                 avatar.SetException(ex, _loadErrorSprite);
             }

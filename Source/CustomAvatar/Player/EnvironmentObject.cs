@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -15,6 +15,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using CustomAvatar.Avatar;
 using CustomAvatar.Configuration;
@@ -28,8 +29,12 @@ namespace CustomAvatar.Player
 {
     internal class EnvironmentObject : MonoBehaviour
     {
-        // found this property through UnityExplorer, hopefully it doesn't disappear in future versions of Unity
+        // found this property through UnityExplorer - hopefully it doesn't disappear in future versions of Unity
         private static readonly Action<Renderer, Transform> kStaticBatchRootTransformSetter = ReflectionExtensions.CreatePropertySetter<Renderer, Transform>("staticBatchRootTransform");
+        private static readonly Dictionary<MirrorRendererSO, MirrorRendererSO> kReplacedMirrorRenderers = new Dictionary<MirrorRendererSO, MirrorRendererSO>();
+
+        private SaberBurnMarkSparkles[] _saberBurnMarkSparkles;
+        private SaberBurnMarkArea[] _saberBurnMarkAreas;
 
         private ILogger<EnvironmentObject> _logger;
         private float _originalY;
@@ -48,6 +53,9 @@ namespace CustomAvatar.Player
             {
                 kStaticBatchRootTransformSetter(renderer, transform);
             }
+
+            _saberBurnMarkSparkles = GetComponentsInChildren<SaberBurnMarkSparkles>();
+            _saberBurnMarkAreas = GetComponentsInChildren<SaberBurnMarkArea>();
         }
 
         [Inject]
@@ -65,17 +73,8 @@ namespace CustomAvatar.Player
             playerAvatarManager.avatarScaleChanged += OnAvatarScaleChanged;
             settings.floorHeightAdjust.changed += OnFloorHeightAdjustChanged;
 
-            foreach (Mirror mirror in GetComponentsInChildren<Mirror>())
-            {
-                _logger.Trace($"Replacing {nameof(MirrorRendererSO)} on '{mirror.name}'");
-
-                MirrorRendererSO original = mirror.GetField<MirrorRendererSO, Mirror>("_mirrorRenderer");
-                MirrorRendererSO renderer = Instantiate(original);
-                renderer.name = original.name + " (Moved Floor Instance)";
-                mirror.SetField("_mirrorRenderer", renderer);
-            }
-
             UpdateOffset();
+            CreateMirrors();
         }
 
         internal virtual void OnDestroy()
@@ -95,6 +94,50 @@ namespace CustomAvatar.Player
             }
 
             transform.position = new Vector3(transform.position.x, _originalY + floorOffset, transform.position.z);
+
+            foreach (SaberBurnMarkSparkles saberBurnMarkSparkles in _saberBurnMarkSparkles)
+            {
+                saberBurnMarkSparkles.SetField("_plane", new Plane(saberBurnMarkSparkles.transform.up, saberBurnMarkSparkles.transform.position));
+            }
+
+            foreach (SaberBurnMarkArea saberBurnMarkArea in _saberBurnMarkAreas)
+            {
+                saberBurnMarkArea.SetField("_plane", new Plane(saberBurnMarkArea.transform.up, saberBurnMarkArea.transform.position));
+            }
+        }
+
+        // TODO: this should be re-run when offset is changed; there are
+        // no mirrors in the menu so this isn't currently a real problem
+        private void CreateMirrors()
+        {
+            if (playerAvatarManager.GetFloorOffset() == 0)
+            {
+                return;
+            }
+
+            foreach (Mirror mirror in GetComponentsInChildren<Mirror>())
+            {
+                _logger.LogTrace($"Replacing {nameof(MirrorRendererSO)} on '{mirror.name}'");
+
+                MirrorRendererSO original = mirror.GetField<MirrorRendererSO, Mirror>("_mirrorRenderer");
+
+                // Since every EnvironmentObject will move by the same amount, we can assume any mirror under
+                // any EnvironmentObject using a given MirrorRendererSO will be on the same plane.
+                if (!kReplacedMirrorRenderers.TryGetValue(original, out MirrorRendererSO renderer) || renderer == null)
+                {
+                    kReplacedMirrorRenderers.Remove(original);
+
+                    _logger.LogTrace($"Creating new {nameof(MirrorRendererSO)} for '{mirror.name}'");
+
+                    renderer = Instantiate(original);
+                    renderer.name = original.name + " (Moved Floor Instance)";
+
+                    // Since these MirrorRendererSOs are reused and never unloaded, might as well keep them in the dictionary as long as the game is running.
+                    kReplacedMirrorRenderers.Add(original, renderer);
+                }
+
+                mirror.SetField("_mirrorRenderer", renderer);
+            }
         }
 
         private void OnAvatarChanged(SpawnedAvatar avatar)

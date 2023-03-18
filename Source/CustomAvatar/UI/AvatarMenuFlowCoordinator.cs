@@ -1,5 +1,5 @@
 //  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -31,7 +31,7 @@ namespace CustomAvatar.UI
         private AvatarListViewController _avatarListViewController;
         private MirrorViewController _mirrorViewController;
         private SettingsViewController _settingsViewController;
-        private Settings _settings;
+        private SettingsManager _settingsManager;
 
         private MenuButton _menuButton;
 
@@ -56,14 +56,20 @@ namespace CustomAvatar.UI
         }
 
         [Inject]
-        private void Construct(ILogger<AvatarMenuFlowCoordinator> logger, MainFlowCoordinator mainFlowCoordinator, AvatarListViewController avatarListViewController, MirrorViewController mirrorViewController, SettingsViewController settingsViewController, Settings settings)
+        private void Construct(
+            ILogger<AvatarMenuFlowCoordinator> logger,
+            MainFlowCoordinator mainFlowCoordinator,
+            AvatarListViewController avatarListViewController,
+            MirrorViewController mirrorViewController,
+            SettingsViewController settingsViewController,
+            SettingsManager settingsManager)
         {
             _logger = logger;
             _mainFlowCoordinator = mainFlowCoordinator;
             _avatarListViewController = avatarListViewController;
             _mirrorViewController = mirrorViewController;
             _settingsViewController = settingsViewController;
-            _settings = settings;
+            _settingsManager = settingsManager;
         }
 
         protected override void DidActivate(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
@@ -85,13 +91,12 @@ namespace CustomAvatar.UI
         {
             try
             {
-                _logger.Info($"Writing settings to '{Settings.kSettingsPath}'");
-                _settings.Save();
+                _settingsManager.Save();
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to write settings to file");
-                _logger.Error(ex);
+                _logger.LogError("Failed to write settings to file");
+                _logger.LogError(ex);
             }
 
             BeatSaberUI.MainFlowCoordinator.DismissFlowCoordinator(this);

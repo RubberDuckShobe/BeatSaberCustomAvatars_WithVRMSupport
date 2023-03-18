@@ -1,5 +1,5 @@
 ﻿//  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -81,7 +81,7 @@ namespace CustomAvatar.UI
             }
             else
             {
-                _logger.Error("Unlit shader not loaded; manual calibration points may not be visible");
+                _logger.LogError("Unlit shader not loaded; manual calibration points may not be visible");
             }
         }
 

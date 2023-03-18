@@ -1,5 +1,5 @@
 //  Beat Saber Custom Avatars - Custom player models for body presence in Beat Saber.
-//  Copyright © 2018-2021  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
+//  Copyright © 2018-2023  Nicolas Gnyra and Beat Saber Custom Avatars Contributors
 //
 //  This library is free software: you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -214,22 +214,7 @@ namespace CustomAvatar.UI
         {
             if (!_mirror) return;
 
-            int baseWidth = XRSettings.eyeTextureWidth;
-            int baseHeight = XRSettings.eyeTextureHeight;
-
-            if (baseWidth <= 0)
-            {
-                baseWidth = UnityEngine.Screen.width;
-            }
-
-            if (baseHeight <= 0)
-            {
-                baseHeight = UnityEngine.Screen.height;
-            }
-
-            _mirror.renderWidth = Mathf.RoundToInt(baseWidth * scale * _mainSettingsModel.vrResolutionScale);
-            _mirror.renderHeight = Mathf.RoundToInt(baseHeight * scale * _mainSettingsModel.vrResolutionScale);
-
+            _mirror.renderScale = scale * _mainSettingsModel.vrResolutionScale;
             _mirror.antiAliasing = antiAliasingLevel;
         }
 
